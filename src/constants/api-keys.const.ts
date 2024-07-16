@@ -1,0 +1,7 @@
+export enum API_KEYS {
+  // Content
+  NEWSFEED = 'NEWSFEED',
+  TIMELINE = 'TIMELINE',
+  CONTENT_DETAIL = 'CONTENT_DETAIL',
+  COMMENTS = 'COMMENTS',
+}

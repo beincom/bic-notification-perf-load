@@ -1,0 +1,7 @@
+node_modules
+yarn-error.log
+dist
+dashboard
+k6
+.k6.kv
+.env
