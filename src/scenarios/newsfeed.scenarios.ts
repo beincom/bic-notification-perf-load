@@ -2,32 +2,31 @@
 import { check, group, sleep } from 'k6'; // @ts-ignore
 import httpagg from 'k6/x/httpagg';
 
-import { Actor } from '../entities/actor';
-import { generateRandomNumber, generateRandomString } from '../utils/utils';
+import { ActorEntity } from '@dals/entities';
+import { StringHelper } from '@shared/helpers';
 
 export async function newsfeedScenario(): Promise<void> {
-  const vuID = __VU; // Get current virtual user's id
+  const virtualUserId = __VU; // Get current virtual user's id
 
   await group('NewsfeedSession', async () => {
-    const actor = Actor.init(vuID);
-
-    const randomGetNewsfeedTimes = generateRandomNumber(5, 25);
+    const actor = ActorEntity.init(virtualUserId);
+    const gettingNewsfeedLength = StringHelper.getRandomNumber(5, 25);
 
     let hasNextPage = true;
     let endCursor;
 
-    let reactContentTimes = 0;
-    let markAsReadTimes = 0;
-    let readContentTimes = 0;
+    let reactionCount = 0;
+    let markAsReadCount = 0;
+    let readContentCount = 0;
+    let loadedContentCount = 0;
 
-    let totalLoadedContent = 0;
-
-    for (let i = 0; i < randomGetNewsfeedTimes; i++) {
+    for (let i = 0; i < gettingNewsfeedLength; i++) {
       if (hasNextPage) {
         const newsfeedResult = await actor.getNewsfeed(endCursor);
         const status = check(newsfeedResult, {
-          '[newsfeedResult] code was api.ok': (res) => res?.code == 'api.ok',
+          '[getNewsfeedResult] code was api.ok': (res) => res?.code == 'api.ok',
         });
+
         httpagg.checkRequest(newsfeedResult, status, {
           fileName: 'dashboard/httpagg-newsfeedResult.json',
           aggregateLevel: 'onError',
@@ -38,12 +37,11 @@ export async function newsfeedScenario(): Promise<void> {
           endCursor = newsfeedResult.data.meta.end_cursor;
 
           const contents = newsfeedResult.data.list;
-          totalLoadedContent += contents.length;
+          loadedContentCount += contents.length;
 
           // Randomly decide whether to action to content or just scroll newsfeed
-          const needActionToContent = generateRandomNumber(0, 3);
-
-          if (needActionToContent === 1) {
+          const shouldActionOnContent = StringHelper.getRandomNumber(0, 3);
+          if (shouldActionOnContent === 1) {
             for (let j = 0; j < contents.length; j++) {
               const content = contents[j];
               const ownerReactionNames = (content.owner_reactions || []).map(
@@ -51,15 +49,16 @@ export async function newsfeedScenario(): Promise<void> {
               );
 
               // Select each 8 contents per 100 contents to react
-              if (content.type !== 'SERIES' && reactContentTimes / totalLoadedContent < 0.08) {
-                const hasReaction = await demoReaction(
+              if (content.type !== 'SERIES' && reactionCount / loadedContentCount < 0.08) {
+                const hasReaction = await makeReaction(
                   actor,
                   content.id,
                   content.type,
                   ownerReactionNames
                 );
+
                 if (hasReaction) {
-                  reactContentTimes++;
+                  reactionCount++;
                 }
               }
 
@@ -68,30 +67,30 @@ export async function newsfeedScenario(): Promise<void> {
                 sleep(3);
 
                 // Press mark as read  random 5 contents (post, article) per 100 contents
-                if (!content.markedReadPost && markAsReadTimes / totalLoadedContent < 0.05) {
-                  const hasMarkAsRead = await demoMarkAsRead(actor, content.id);
+                if (!content.markedReadPost && markAsReadCount / loadedContentCount < 0.05) {
+                  const hasMarkAsRead = await markAsRead(actor, content.id);
                   if (hasMarkAsRead) {
-                    markAsReadTimes++;
+                    markAsReadCount++;
                   }
                 }
               }
 
               // For every 50 content, save one
               if ((i * 20 + j) % 50 == 0) {
-                await demoSaveContent(actor, content.id);
+                await saveContent(actor, content.id);
               }
 
               // Click on details random 5 contents per 100 contents to read.
-              if (readContentTimes / totalLoadedContent < 0.05) {
-                const hasReadContent = await demoReadContent(actor, content.id, content.type);
+              if (readContentCount / loadedContentCount < 0.05) {
+                const hasReadContent = await readContent(actor, content.id, content.type);
                 if (hasReadContent) {
-                  readContentTimes++;
+                  readContentCount++;
                 }
               }
             }
           } else {
             // Simulate scrolling scroll newsfeed 2 ➝ 30s
-            sleep(generateRandomNumber(2, 30));
+            sleep(StringHelper.getRandomNumber(2, 30));
           }
         } else {
           hasNextPage = false;
@@ -101,15 +100,15 @@ export async function newsfeedScenario(): Promise<void> {
   });
 }
 
-async function demoReaction(
-  actor: Actor,
+async function makeReaction(
+  actor: ActorEntity,
   targetId: string,
   targetType: string,
   ownerReactionNames: string[]
 ): Promise<boolean> {
   // Randomly decide whether to react or not
-  const needReaction = generateRandomNumber(0, 5);
-  if (needReaction !== 1) {
+  const shouldReact = StringHelper.getRandomNumber(0, 5);
+  if (shouldReact !== 1) {
     return false;
   }
 
@@ -122,6 +121,7 @@ async function demoReaction(
     'react_clapping_hands',
     'react_fire',
   ];
+
   const candidateReactionNames = reactionNames.filter((reactionName) => {
     return !ownerReactionNames.includes(reactionName);
   });
@@ -131,17 +131,17 @@ async function demoReaction(
   }
 
   // Simulate user can randomly react from 1 ➝ 7 reactions per content
-  const randomReactionTimes = generateRandomNumber(1, candidateReactionNames.length);
-
-  for (let i = 0; i < randomReactionTimes; i++) {
+  const reactionLength = StringHelper.getRandomNumber(1, candidateReactionNames.length);
+  for (let i = 0; i < reactionLength; i++) {
     // Simulate user need 1 to 4 seconds to choose a emoji
-    sleep(generateRandomNumber(1, 4));
+    sleep(StringHelper.getRandomNumber(1, 4));
 
     const reactionName = candidateReactionNames[i];
     const reactionResult = await actor.reaction(targetId, targetType, reactionName);
     const status = check(reactionResult, {
       [`[reactionResult - ${targetType}] code was api.ok`]: (res) => res?.code == 'api.ok',
     });
+
     httpagg.checkRequest(reactionResult, status, {
       fileName: 'dashboard/httpagg-reactionResult.json',
       aggregateLevel: 'onError',
@@ -151,10 +151,10 @@ async function demoReaction(
   return true;
 }
 
-async function demoMarkAsRead(actor: Actor, contentId: string): Promise<any> {
+async function markAsRead(actor: ActorEntity, contentId: string): Promise<any> {
   // Randomly decide whether to mark as read or not
-  const needMarkAsRead = generateRandomNumber(0, 5);
-  if (needMarkAsRead !== 1) {
+  const shouldMarkAsRead = StringHelper.getRandomNumber(0, 5);
+  if (shouldMarkAsRead !== 1) {
     return false;
   }
 
@@ -162,6 +162,7 @@ async function demoMarkAsRead(actor: Actor, contentId: string): Promise<any> {
   const status = check(markAsReadResult, {
     '[markAsReadResult] code was api.ok': (res) => res?.code == 'api.ok',
   });
+
   httpagg.checkRequest(markAsReadResult, status, {
     fileName: 'dashboard/httpagg-markAsReadResult.json',
     aggregateLevel: 'onError',
@@ -170,11 +171,12 @@ async function demoMarkAsRead(actor: Actor, contentId: string): Promise<any> {
   return true;
 }
 
-async function demoSaveContent(actor: Actor, contentId: string): Promise<any> {
+async function saveContent(actor: ActorEntity, contentId: string): Promise<any> {
   const menuSettingsResult = await actor.getMenuSettings(contentId);
   const menuSettingsStatus = check(menuSettingsResult, {
     '[menuSettingsResult] code was api.ok': (res) => res?.code == 'api.ok',
   });
+
   httpagg.checkRequest(menuSettingsResult, menuSettingsStatus, {
     fileName: 'dashboard/httpagg-menuSettingsResult.json',
     aggregateLevel: 'onError',
@@ -186,6 +188,7 @@ async function demoSaveContent(actor: Actor, contentId: string): Promise<any> {
       const status = check(saveContentResult, {
         '[saveContentResult] code was api.ok': (res) => res?.code == 'api.ok',
       });
+
       httpagg.checkRequest(saveContentResult, status, {
         fileName: 'dashboard/httpagg-saveContentResult.json',
         aggregateLevel: 'onError',
@@ -194,50 +197,56 @@ async function demoSaveContent(actor: Actor, contentId: string): Promise<any> {
   }
 }
 
-async function demoReadContent(actor: Actor, contentId: string, contentType: string): Promise<any> {
+async function readContent(
+  actor: ActorEntity,
+  contentId: string,
+  contentType: string
+): Promise<any> {
   // Randomly decide whether to read or not
-  const needRead = generateRandomNumber(0, 5);
-  if (needRead !== 1) {
+  const shouldRead = StringHelper.getRandomNumber(0, 5);
+  if (shouldRead !== 1) {
     return false;
   }
 
-  const contentDetailResult = await actor.getContentDetail(contentId, contentType);
+  const contentDetailResult = await actor.getContentDetails(contentId, contentType);
   const status = check(contentDetailResult, {
-    '[contentDetailResult] code was api.ok': (res) => res?.code == 'api.ok',
+    '[getContentDetailsResult] code was api.ok': (res) => res?.code == 'api.ok',
   });
+
   httpagg.checkRequest(contentDetailResult, status, {
     fileName: 'dashboard/httpagg-contentDetailResult.json',
     aggregateLevel: 'onError',
   });
 
   // Reading time is between 15 seconds to 3 minutes
-  sleep(generateRandomNumber(15, 180));
+  sleep(StringHelper.getRandomNumber(15, 180));
 
   // Scroll down to the comments section to read all 20 latest comments
-  await demoGetCommentList(actor, contentId);
+  await getComments(actor, contentId);
 
   // Leave a level 1 comment with random characters (1 to 2000 characters)
-  await demoComment(actor, contentId);
+  await comment(actor, contentId);
 
   return true;
 }
 
-async function demoGetCommentList(actor: Actor, contentId: string): Promise<any> {
-  const randomGetCommentsTimes = generateRandomNumber(1, 5);
+async function getComments(actor: ActorEntity, contentId: string): Promise<any> {
+  const gettingCommentLength = StringHelper.getRandomNumber(1, 5);
 
   let hasNextPage = true;
   let endCursor;
 
-  let reactCommentTimes = 0;
+  let reactCommentCount = 0;
   let hasReplyComment = false;
 
-  for (let i = 0; i < randomGetCommentsTimes; i++) {
+  for (let i = 0; i < gettingCommentLength; i++) {
     // Click View previous comments...  to see all previous comments
     if (hasNextPage) {
       const commentListResult = await actor.getComments(contentId, endCursor);
       const status = check(commentListResult, {
-        '[commentListResult] code was api.ok': (res) => res?.code == 'api.ok',
+        '[getCommentsResult] code was api.ok': (res) => res?.code == 'api.ok',
       });
+
       httpagg.checkRequest(commentListResult, status, {
         fileName: 'dashboard/httpagg-commentListResult.json',
         aggregateLevel: 'onError',
@@ -250,34 +259,36 @@ async function demoGetCommentList(actor: Actor, contentId: string): Promise<any>
         const comments = commentListResult.data.list;
 
         // Randomly decide whether to action to comment or just scroll comment list
-        const needActionToComment = generateRandomNumber(0, 1);
-        if (needActionToComment) {
+        const shouldActionOnComment = StringHelper.getRandomNumber(0, 1);
+        if (shouldActionOnComment) {
           for (let j = 0; j < comments.length; j++) {
             const comment = comments[j];
 
             // React to 5 other people's comments
-            if (reactCommentTimes < 5) {
+            if (reactCommentCount < 5) {
               const ownerReactionNames = (comment.owner_reactions || []).map(
                 (reaction) => reaction.reaction_name
               );
-              const hasReaction = await demoReaction(
+
+              const hasReaction = await makeReaction(
                 actor,
                 comment.id,
                 'COMMENT',
                 ownerReactionNames
               );
+
               if (hasReaction) {
-                reactCommentTimes++;
+                reactCommentCount++;
               }
             }
 
             if (!hasReplyComment) {
-              hasReplyComment = await demoReplyComment(actor, contentId, comment.id);
+              hasReplyComment = await replyComment(actor, contentId, comment.id);
             }
           }
         } else {
           // Simulate scrolling through the comment list for 2s ➝ 20s
-          sleep(generateRandomNumber(2, 20));
+          sleep(StringHelper.getRandomNumber(2, 20));
         }
       } else {
         hasNextPage = false;
@@ -286,25 +297,26 @@ async function demoGetCommentList(actor: Actor, contentId: string): Promise<any>
   }
 }
 
-async function demoReplyComment(
-  actor: Actor,
+async function replyComment(
+  actor: ActorEntity,
   contentId: string,
   commentId: string
 ): Promise<boolean> {
   // Randomly decide whether to reply or not
-  const needReply = generateRandomNumber(0, 5);
-  if (needReply !== 1) {
+  const shouldReply = StringHelper.getRandomNumber(0, 5);
+  if (shouldReply !== 1) {
     return false;
   }
 
   // Simulate user need 3 to 10 seconds to type a reply comment
-  sleep(generateRandomNumber(3, 10));
+  sleep(StringHelper.getRandomNumber(3, 10));
 
   const replyContent = 'This is a reply comment';
   const replyCommentResult = await actor.replyComment(contentId, commentId, replyContent);
   const status = check(replyCommentResult, {
     '[replyCommentResult] code was api.ok': (res) => res?.code == 'api.ok',
   });
+
   httpagg.checkRequest(replyCommentResult, status, {
     fileName: 'dashboard/httpagg-replyCommentResult.json',
     aggregateLevel: 'onError',
@@ -313,15 +325,16 @@ async function demoReplyComment(
   return true;
 }
 
-async function demoComment(actor: Actor, contentId: string): Promise<any> {
+async function comment(actor: ActorEntity, contentId: string): Promise<any> {
   // Simulate user need 3 to 10 seconds to type a comment
-  sleep(generateRandomNumber(3, 10));
+  sleep(StringHelper.getRandomNumber(3, 10));
 
-  const randomContent = generateRandomString(generateRandomNumber(10, 2000));
+  const randomContent = StringHelper.generateRandomString(StringHelper.getRandomNumber(10, 2000));
   const commentResult = await actor.comment(contentId, randomContent);
   const status = check(commentResult, {
     '[commentResult] code was api.ok': (res) => res?.code == 'api.ok',
   });
+
   httpagg.checkRequest(commentResult, status, {
     fileName: 'dashboard/httpagg-commentResult.json',
     aggregateLevel: 'onError',

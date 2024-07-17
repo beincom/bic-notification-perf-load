@@ -22,25 +22,21 @@ export class HttpAdapter {
 
   public get(url: string, options: IHttpAdapterOptions = {}): Promise<any> {
     const httpOptions = merge(this.options, options);
-
     return axios.get(url, httpOptions);
   }
 
   public post(url: string, data: unknown, options: IHttpAdapterOptions = {}): Promise<any> {
     const httpOptions = merge(this.options, options);
-
     return axios.post(url, data, httpOptions);
   }
 
   public put(url: string, data: unknown, options: IHttpAdapterOptions = {}): Promise<any> {
     const httpOptions = merge(this.options, options);
-
     return axios.put(url, data, httpOptions);
   }
 
   public delete(url: string, options: IHttpAdapterOptions = {}): Promise<any> {
     const httpOptions = merge(this.options, options);
-
     return axios.delete(url, httpOptions);
   }
 }

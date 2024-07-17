@@ -19,6 +19,26 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@config": [
+        "./config"
+      ],
+      "@dals/*": [
+        "./dals/*"
+      ],
+      "@services/*": [
+        "scripts/services"
+      ],
+      "@http/*": [
+        "./scripts/http/*"
+      ],
+      "@seed/*": [
+        "./scripts/seed/*"
+      ],
+      "@shared/*": [
+        "./shared/*"
+      ]
+    }
   }
 }

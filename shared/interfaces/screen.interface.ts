@@ -1,8 +1,8 @@
-import { API_KEYS } from '../constants/api-keys.const';
-import { Actor } from '../entities/actor';
+import { ActorEntity } from '@dals/entities';
+import { API_KEYS } from '@shared/constants';
 
 export interface IScreenInput {
-  actor: Actor;
+  actor: ActorEntity;
   contentId?: string;
   contentType?: string;
 }

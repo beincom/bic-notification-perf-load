@@ -1,5 +1,5 @@
-import { API_KEYS } from '../constants/api-keys.const';
-import { IScreenOutput } from '../interfaces/screen.interface';
+import { IScreenOutput } from '@shared/interfaces';
+import { API_KEYS } from '@shared/constants';
 
 export class ScreenBrowser {
   private cachedAPIs: Partial<Record<keyof API_KEYS, any>> = {};

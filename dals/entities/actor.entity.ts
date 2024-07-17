@@ -1,28 +1,28 @@
-import { GET, POST, PUT } from '../utils/http.utils';
-import { COMMON_CONFIG, SERVICE } from '../common';
-import { CONFIGS } from '../../config';
+import { HttpHelper } from '@shared/helpers';
+import { StringHelper } from '@shared/helpers/string.helper';
+import { UserSeeding } from '@seed/user.seed';
 
-import { generateUserNameSeed } from '../../scripts/seed/user-seed-generator';
-import { rand } from '../utils/utils';
+import { CONFIGS } from '@config';
+import { COMMON_CONFIG, SERVICE } from '@shared/common';
 
-export class Actor {
+export class ActorEntity {
   public username: string;
 
   private constructor(data: { username: string }) {
     this.username = data.username;
   }
 
-  public static init(index: number): Actor {
-    const randomUserIndex = index || rand(CONFIGS.NUMBER_OF_USERS);
-    const username = generateUserNameSeed(randomUserIndex);
-    const actor = new Actor({ username });
+  public static init(index: number): ActorEntity {
+    const userIndex = index || StringHelper.getRandomNumber(CONFIGS.NUMBER_OF_USERS);
+    const username = UserSeeding.seedUsername(userIndex);
+    const actor = new ActorEntity({ username });
     return actor;
   }
 
   public async getJoinedCommunities(): Promise<{
     data: { id: string; group_id: string; name: string }[];
   }> {
-    return GET({
+    return HttpHelper.GET({
       actorUsername: this.username,
       url: `${SERVICE.GROUP.HOST}/me/communities?limit=500`,
     });
@@ -33,17 +33,17 @@ export class Actor {
     if (after) {
       url += `&after=${after}`;
     }
-    return GET({
+    return HttpHelper.GET({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
     });
   }
 
-  public async getContentDetail(contentId: string, contentType: string): Promise<any> {
+  public async getContentDetails(contentId: string, contentType: string): Promise<any> {
     switch (contentType) {
       case 'POST': {
-        return GET({
+        return HttpHelper.GET({
           actorUsername: this.username,
           url: `${SERVICE.CONTENT.HOST}/posts/${contentId}`,
           headers: {
@@ -53,7 +53,7 @@ export class Actor {
       }
 
       case 'ARTICLE': {
-        return GET({
+        return HttpHelper.GET({
           actorUsername: this.username,
           url: `${SERVICE.CONTENT.HOST}/articles/${contentId}`,
           headers: {
@@ -63,7 +63,7 @@ export class Actor {
       }
 
       case 'SERIES': {
-        return GET({
+        return HttpHelper.GET({
           actorUsername: this.username,
           url: `${SERVICE.CONTENT.HOST}/series/${contentId}`,
           headers: {
@@ -79,7 +79,7 @@ export class Actor {
   }
 
   public async getMenuSettings(contentId: string): Promise<any> {
-    return GET({
+    return HttpHelper.GET({
       actorUsername: this.username,
       url: `${SERVICE.CONTENT.HOST}/contents/${contentId}/menu-settings`,
       headers: {
@@ -93,7 +93,7 @@ export class Actor {
     if (after) {
       url += `&after=${after}`;
     }
-    return GET({
+    return HttpHelper.GET({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -105,7 +105,8 @@ export class Actor {
     if (after) {
       url += `&after=${after}`;
     }
-    return GET({
+
+    return HttpHelper.GET({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -115,7 +116,7 @@ export class Actor {
   public async reaction(targetId: string, targetType: string, reactionName: string): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/reactions`;
 
-    return POST({
+    return HttpHelper.POST({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -130,7 +131,7 @@ export class Actor {
   public async markAsRead(contentId: string): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/contents/${contentId}/mark-as-read`;
 
-    return PUT({
+    return HttpHelper.PUT({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -140,7 +141,7 @@ export class Actor {
   public async saveContent(contentId: string): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/contents/${contentId}/save`;
 
-    return POST({
+    return HttpHelper.POST({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -150,7 +151,7 @@ export class Actor {
   public async replyComment(contentId: string, commentId: string, content: string): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/comments/${commentId}/reply`;
 
-    return POST({
+    return HttpHelper.POST({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -161,7 +162,7 @@ export class Actor {
   public async comment(contentId: string, content: string): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/comments`;
 
-    return POST({
+    return HttpHelper.POST({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -172,7 +173,7 @@ export class Actor {
   public async startQuiz(quizId: string): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/quiz-participant/${quizId}/start`;
 
-    return POST({
+    return HttpHelper.POST({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -180,7 +181,7 @@ export class Actor {
   }
 
   public async getQuizResult(quizParticipantId: string): Promise<any> {
-    return GET({
+    return HttpHelper.GET({
       actorUsername: this.username,
       url: `${SERVICE.CONTENT.HOST}/quiz-participant/${quizParticipantId}`,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -193,7 +194,7 @@ export class Actor {
   ): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/quiz-participant/${quizParticipantId}/answers`;
 
-    return PUT({
+    return HttpHelper.PUT({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },
@@ -207,7 +208,7 @@ export class Actor {
   ): Promise<any> {
     const url = `${SERVICE.CONTENT.HOST}/quiz-participant/${quizParticipantId}/answers`;
 
-    return PUT({
+    return HttpHelper.PUT({
       actorUsername: this.username,
       url,
       headers: { [COMMON_CONFIG.HEADER_KEY.VER]: SERVICE.CONTENT.LATEST_VER },

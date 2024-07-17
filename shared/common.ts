@@ -67,5 +67,4 @@ const SERVICE_ENV = {
 };
 
 export const SERVICE = SERVICE_ENV.INTERNAL;
-
 export const PASSWORD = CONFIGS.DEFAULT_PASSWORD;

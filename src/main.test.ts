@@ -4,8 +4,10 @@ import { Options } from 'k6/options'; // @ts-ignore
 import httpagg from 'k6/x/httpagg';
 
 import 'regenerator-runtime/runtime';
+
+import { REQUEST_TIMEOUT_COUNT, SERVER_DOWN_COUNT, kv } from '@shared/helpers';
+
 import { NON_QUIZZES_COUNT } from './main.test';
-import { REQUEST_TIMEOUT_COUNT, SERVER_DOWN_COUNT, kv } from './utils/http.utils';
 
 export * from './scenarios/newsfeed.scenarios';
 export * from './scenarios/answer-quiz.scenarios';
